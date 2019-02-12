@@ -63,11 +63,20 @@ type CertificateSpec struct {
 	// Certificate renew before expiration duration
 	RenewBefore *metav1.Duration `json:"renewBefore,omitempty"`
 
+	// Do not automatically add the common name as an Subject Alternative Name
+	ExcludeCommonNameFromSANs bool `json:"excludeCommonNameFromSANs,omitempty"`
+
 	// DNSNames is a list of subject alt names to be used on the Certificate
 	DNSNames []string `json:"dnsNames,omitempty"`
 
 	// IPAddresses is a list of IP addresses to be used on the Certificate
 	IPAddresses []string `json:"ipAddresses,omitempty"`
+
+	// EmailAddresses is a list of email addresses to use in the Subject Alternative Names (SANs)
+	EmailAddresses []string `json:"emailAddresses,omitempty"`
+
+	// URIs is a list of URIs to use in the Subject Alternative Names (SANs)
+	URIs []string `json:"uris,omitempty"`
 
 	// SecretName is the name of the secret resource to store this secret in
 	SecretName string `json:"secretName"`

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -93,7 +94,10 @@ func (v *Vault) Issue(ctx context.Context, crt *v1alpha1.Certificate) (*issuer.I
 		certDuration = crt.Spec.Duration.Duration
 	}
 
-	certPem, caPem, err := v.requestVaultCert(template.Subject.CommonName, certDuration, template.DNSNames, pki.IPAddressesToString(template.IPAddresses), pemRequestBuf.Bytes())
+	certPem, caPem, err := v.requestVaultCert(template.Subject.CommonName, crt.Spec.ExcludeCommonNameFromSANs,
+		certDuration,
+		append(template.DNSNames, template.EmailAddresses...), pki.URIsToString(template.URIs), pki.IPAddressesToString(template.IPAddresses),
+		pemRequestBuf.Bytes())
 	if err != nil {
 		v.Recorder.Eventf(crt, corev1.EventTypeWarning, "ErrorSigning", "Failed to request certificate: %v", err)
 		return nil, err
@@ -214,7 +218,7 @@ func (v *Vault) requestTokenWithAppRoleRef(client *vault.Client, appRole *v1alph
 	return token, nil
 }
 
-func (v *Vault) requestVaultCert(commonName string, certDuration time.Duration, altNames []string, ipSans []string, csr []byte) ([]byte, []byte, error) {
+func (v *Vault) requestVaultCert(commonName string, excludeCommonNameFromSANs bool, certDuration time.Duration, altNames []string, uriSans []string, ipSans []string, csr []byte) ([]byte, []byte, error) {
 
 	client, err := v.initVaultClient()
 	if err != nil {
@@ -224,12 +228,13 @@ func (v *Vault) requestVaultCert(commonName string, certDuration time.Duration, 
 	glog.V(4).Infof("Vault certificate request for commonName %s altNames: %q ipSans: %q", commonName, altNames, ipSans)
 
 	parameters := map[string]string{
-		"common_name":          commonName,
-		"alt_names":            strings.Join(altNames, ","),
-		"ip_sans":              strings.Join(ipSans, ","),
-		"ttl":                  certDuration.String(),
-		"csr":                  string(csr),
-		"exclude_cn_from_sans": "true",
+		"common_name": commonName,
+		"alt_names":   strings.Join(altNames, ","),
+		"ip_sans":     strings.Join(ipSans, ","),
+		"uri_sans":    strings.Join(uriSans, ","),
+		"ttl":         certDuration.String(),
+		"csr":         string(csr),
+		"exclude_cn_from_sans": strconv.FormatBool(excludeCommonNameFromSANs),
 	}
 
 	url := path.Join("/v1", v.issuer.GetSpec().Vault.Path)
